@@ -264,10 +264,10 @@ int main() {
             }
         }
     }
-    int sleeping[3]={1,2,3};//use 8,16,32 during actual implementation
+    int sleeping[3]={8,16,32};//use 8,16,32 during actual implementation
     wrongs = 0;
     while (true) {
-        printf("Enter new password (%dth attempt): ",wrongs+1);
+        printf("Enter new password (attempt %d): ",wrongs+1);
         scanf("%s", new_password);
 
         if (pwc(new_password, strlen(new_password), fname, lname, dob, &q, wrongs)) {
