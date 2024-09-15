@@ -1,9 +1,10 @@
-#include<stdio.h>
-#include<string.h>
-#include<stdlib.h>
-#include<stdbool.h>
-#include<ctype.h>
-#include<unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <ctype.h>
+#include <unistd.h>
+
 #define MAX_SIZE 10
 #define MAX_LEN 20
 
@@ -16,23 +17,31 @@ void initQueue(Queue *q) {
     q->size = 0;
 }
 
-//we assume that at the beginning password count was below 10, so we never check f number of existing passwords is greater than 10 and truncate the queue accordingly
+
 void enqueue(Queue *q, const char *password) {
-    if (q->size == MAX_SIZE) {
-        for (int i = 1; i < MAX_SIZE; i++) {
-            strcpy(q->data[i - 1], q->data[i]);
+    if (q->size < MAX_SIZE) {
+        for (int i = q->size-1; i >= 0; i--) {
+            strcpy(q->data[i+1], q->data[i]);
         }
-        strcpy(q->data[MAX_SIZE - 1], password);
-    } else {
-        strcpy(q->data[q->size], password);
+        strcpy(q->data[0], password);
         q->size++;
+    } else {
+        for (int i = MAX_SIZE - 2; i >= 0; i--) {
+            strcpy(q->data[i+1], q->data[i]);
+        }
+        strcpy(q->data[0], password);
     }
+}
+
+void initial_enqueue(Queue *q, const char *password){
+	strcpy(q->data[q->size], password);
+	q->size++;
 }
 
 bool r7(const char *str, const char *sub) {
     int len_str = strlen(str);
     int len_sub = strlen(sub);
-    
+
     for (int i = 0; i <= len_str - len_sub; i++) {
         bool match = true;
         for (int j = 0; j < len_sub; j++) {
@@ -65,7 +74,7 @@ bool r8(const char *password, const char *dob, int *max_digits) {
     return *max_digits > 3; 
 }
 
-int match_consecutive_chars(const char *password, const char *str) {
+int charmatch(const char *password, const char *str) {
     int len_pwd = strlen(password);
     int len_str = strlen(str);
     int max_match = 0;
@@ -81,8 +90,9 @@ int match_consecutive_chars(const char *password, const char *str) {
             }
         }
     }
-    return max_match; // returns the maximum number of consecutive matching characters
+    return max_match;
 }
+
 bool pwc(char *p, int n, char *fname, char *lname, char *dob, Queue *q, int wrongs) {
     bool rules[8] = {0};
     int max_digits = 0, max_chars = 0;
@@ -90,17 +100,17 @@ bool pwc(char *p, int n, char *fname, char *lname, char *dob, Queue *q, int wron
 
     rules[5] = rules[6] = rules[7] = 1;
     if (n >= 12) rules[0] = 1;
-    
+
     for (int i = 0; i < n; i++) {
         if (islower(p[i])) rules[1] = 1;
         if (isupper(p[i])) rules[2] = 1;
         if (isdigit(p[i])) rules[3] = 1;
         if (p[i] == '.' || p[i] == '@' || p[i] == '!' || p[i] == '#' || p[i] == '$' || p[i] == '%' || p[i] == '^' || p[i] == '&' || p[i] == '*' || p[i] == '-' || p[i] == '_') {
             rules[4] = 1;
-        }//due to lack of ascii range, I have just included the symbols themselves, if you guys find a better way to increase readability then you can modify it
+        }
     }
     for (int i = 0; i < q->size; i++) {
-        max_chars = match_consecutive_chars(p, q->data[i]);
+        max_chars = charmatch(p, q->data[i]);
         if (max_chars > 4) {
             rules[5] = 0;
             break;
@@ -108,13 +118,13 @@ bool pwc(char *p, int n, char *fname, char *lname, char *dob, Queue *q, int wron
     }
     name_matches = r7(p, fname);
     surname_matches = r7(p, lname);
-    
+
     if (name_matches || surname_matches) {
         rules[6] = 0;
     }
     rules[7] = !r8(p, dob, &max_digits);
     if (!rules[0] || !rules[1] || !rules[2] || !rules[3] || !rules[4] || !rules[5] || !rules[6] || !rules[7]) {
-        printf("Attempt %d failed.\n", wrongs);
+        printf("Attempt %d failed.\n", wrongs+1);
         if (!rules[0]) printf("Password does not contain a minimum of 12 characters.\n");
         if (!rules[1]) printf("Password does not contain at least one lowercase letter.\n");
         if (!rules[2]) printf("Password does not contain at least one uppercase letter.\n");
@@ -122,7 +132,6 @@ bool pwc(char *p, int n, char *fname, char *lname, char *dob, Queue *q, int wron
         if (!rules[4]) printf("Password does not contain at least one of the allowed special characters.\n");
         if (!rules[5]) printf("Password contains %d characters consecutively similar to one of the past 10 passwords.\n", max_chars);
 
-        // Output specific message based on whether name or surname or both matched
         if (name_matches && surname_matches) {
             printf("Password contains name and surname portions of the username.\n");
         } else if (name_matches) {
@@ -138,33 +147,147 @@ bool pwc(char *p, int n, char *fname, char *lname, char *dob, Queue *q, int wron
     return true;
 }
 
+void readMaster(char *fname, char *lname, char *dob, char *password_file) {
+    FILE *file = fopen("masterfile.txt", "r");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        exit(1);
+    }
+
+    char username[50], dob_read[15], pwdfile[50];
+    bool found = false;
+
+    while (fscanf(file, "%s %s %s", username, dob_read, pwdfile) != EOF) {
+        char full_name[40];
+        sprintf(full_name, "%s.%s", fname, lname); 
+        if (strcmp(username, full_name) == 0) {
+            strcpy(dob, dob_read);
+            strcpy(password_file, pwdfile);
+            found = true;
+            break;
+        }
+    }
+    fclose(file);
+
+    if (!found) {
+        printf("User not found in the master file.\n");
+        exit(1);
+    }
+
+    for (int i = 0, j = 0; dob_read[i] != '\0'; i++) {
+        if (dob_read[i] != '-') {
+            dob[j++] = dob_read[i];
+        }
+    }
+}
+
+void loadPwd(Queue *q, char *password_file) {
+    FILE *file = fopen(password_file, "r");
+    if (file == NULL) {
+        printf("Error opening password file.\n");
+        exit(1);
+    }
+
+    char pwd[MAX_LEN];
+    while (fscanf(file, "%s", pwd) != EOF) {
+        initial_enqueue(q, pwd);
+    }
+    fclose(file);
+}
+
+void savePwd(Queue *q, char *password_file) {
+    FILE *file = fopen(password_file, "w");
+    if (file == NULL) {
+        printf("Error opening password file to write.\n");
+        exit(1);
+    }
+
+    for (int i = 0; i < q->size; i++) {
+        fprintf(file, "%s\n", q->data[i]);
+    }
+    fclose(file);
+}
+
+bool checkLog(Queue *q, const char *password_file, const char *entered_password) {
+    FILE *file = fopen(password_file, "r");
+    if (file == NULL) {
+        printf("Error opening password file.\n");
+        return false;
+    }
+
+    char most_recent_password[MAX_LEN];
+    if (fscanf(file, "%s", most_recent_password) != EOF) {
+        fclose(file);
+        return strcmp(most_recent_password, entered_password) == 0;
+    }
+
+    fclose(file);
+    return false;
+}
+
 int main() {
     Queue q;
     initQueue(&q);
-    char *initial_passwords[] = {"1aA!wefoboscs","1bB@wfnsofssdfois","4Bb#sofbwfwofwfn","43ghG&fnbqwdfd","2px34sa19h.fS", "lkA@!o90a$5p", "m.M90a21gth*k", "xCXtimPOT23!p", "Abcd.1234.*S","9091@asdfOOP$"};
-    for (int i = 0; i < 10; i++) {
-        enqueue(&q, initial_passwords[i]);
-    }
 
-    int sleeping[3] = {0, 0, 0}; // change to 8, 16, and 32 later
+    char fname[50], lname[50], dob[15], password_file[50];
+    char full_name[50];
 
-    // Placeholder values for fname, lname, dob
-    char fname[] = "ramesh";
-    char lname[] = "yadav";
-    char dob[] = "19091985"; // should remove hyphens when reading from a file
-    char new_password[] = "rameshyadav1985"; // should not accept due to multiple rules
+    printf("Enter username (first.last): ");
+    scanf("%s", full_name);
+    //separate into first name,last name, imortant for name matching
+    char *token = strtok(full_name, ".");
+    strcpy(fname, token);
+    token = strtok(NULL, ".");
+    strcpy(lname, token);
 
-    for (int i = 0; i < 4; i++) {
-        if (pwc(new_password, strlen(new_password), fname, lname, dob, &q, i + 1)) {
-            enqueue(&q, new_password); // Add to queue if password is accepted
-            printf("Password changed successfully.\n");
-            return 0;
+    readMaster(fname, lname, dob, password_file);
+
+    loadPwd(&q, password_file);
+
+    int wrongs = 0;
+    char new_password[MAX_LEN];
+
+    while (true) {
+        printf("Enter current password for login: ");
+        char entered_password[MAX_LEN];
+        scanf("%s", entered_password);
+
+        if (checkLog(&q, password_file, entered_password)) {
+            printf("Login successful.\n");
+            break;
         } else {
-            if (i == 3) {
-                printf("Too many bad login attempts. Exiting.\n");
-                return 0;
+            printf("Login failed. Please try again.\n");
+            wrongs++;
+            if (wrongs == 3) {
+                printf("Wrong password entered 3 times. Exiting application...\n");
+                return 1;
             }
-            sleep(sleeping[i]);
+        }
+    }
+    int sleeping[3]={1,2,3};//use 8,16,32 during actual implementation
+    wrongs = 0;
+    while (true) {
+        printf("Enter new password (%dth attempt): ",wrongs+1);
+        scanf("%s", new_password);
+
+        if (pwc(new_password, strlen(new_password), fname, lname, dob, &q, wrongs)) {
+            enqueue(&q, new_password);
+            savePwd(&q, password_file);
+            printf("Password changed successfully.\n");
+            break;
+        } else {
+            wrongs++;
+            if (wrongs == 4) {
+                printf("All 4 attempts failed. You need to try again later. \n");
+                return 1;
+            }
+            int i=wrongs-1;
+            while(sleeping[i]!=0){
+                printf("Please wait for %d seconds \n",sleeping[i]);
+                sleeping[i]--;
+                fflush(stdout);//this is to print stdout immediately
+                sleep(1);
+            }
         }
     }
 
