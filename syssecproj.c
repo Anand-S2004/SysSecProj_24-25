@@ -124,7 +124,15 @@ bool pwc(char *p, int n, char *fname, char *lname, char *dob, Queue *q, int wron
     }
     rules[7] = !r8(p, dob, &max_digits);
     if (!rules[0] || !rules[1] || !rules[2] || !rules[3] || !rules[4] || !rules[5] || !rules[6] || !rules[7]) {
-        printf("Attempt %d failed.\n", wrongs+1);
+        if(wrongs==0){
+        	printf("First attempt failed\n");
+        }else if(wrongs==1){
+        	printf("Second attempt failed\n");
+        }else if(wrongs==2){
+        	printf("Third attempt failed\n");
+        }else{
+        	printf("Fourth attempt failed\n");
+        }
         if (!rules[0]) printf("Password does not contain a minimum of 12 characters.\n");
         if (!rules[1]) printf("Password does not contain at least one lowercase letter.\n");
         if (!rules[2]) printf("Password does not contain at least one uppercase letter.\n");
@@ -232,7 +240,7 @@ int main() {
     char fname[50], lname[50], dob[15], password_file[50];
     char full_name[50];
 
-    printf("Enter username (first.last): ");
+    printf("Enter username: ");
     scanf("%s", full_name);
     //separate into first name,last name, imortant for name matching
     char *token = strtok(full_name, ".");
@@ -248,7 +256,7 @@ int main() {
     char new_password[MAX_LEN];
 
     while (true) {
-        printf("Enter current password for login: ");
+        printf("Enter password: ");
         char entered_password[MAX_LEN];
         scanf("%s", entered_password);
 
@@ -256,7 +264,7 @@ int main() {
             printf("Login successful.\n");
             break;
         } else {
-            printf("Login failed. Please try again.\n");
+            printf("Wrong password! Enter password again.\n");
             wrongs++;
             if (wrongs == 3) {
                 printf("Wrong password entered 3 times. Exiting application...\n");
@@ -264,10 +272,10 @@ int main() {
             }
         }
     }
-    int sleeping[3]={8,16,32};//use 8,16,32 during actual implementation
+    int sleeping[3]={8,16,32};
     wrongs = 0;
     while (true) {
-        printf("Enter new password (attempt %d): ",wrongs+1);
+        printf("Enter your new password (attempt %d): ",wrongs+1);
         scanf("%s", new_password);
 
         if (pwc(new_password, strlen(new_password), fname, lname, dob, &q, wrongs)) {
@@ -283,7 +291,7 @@ int main() {
             }
             int i=wrongs-1;
             while(sleeping[i]!=0){
-                printf("Please wait for %d seconds \n",sleeping[i]);
+                printf("Wait for %d seconds \n",sleeping[i]);
                 sleeping[i]--;
                 fflush(stdout);//this is to print stdout immediately
                 sleep(1);
